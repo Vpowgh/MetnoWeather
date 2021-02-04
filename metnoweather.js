@@ -4,8 +4,8 @@ plugin.OnConnect = onConnect;
 plugin.OnDisconnect = onDisconnect;
 plugin.OnPoll = onPoll;
 plugin.OnSynchronizeDevices = onSynchronizeDevices;
-plugin.PollingInterval = -1;
-
+plugin.PollingInterval = 900000; //every 15min
+plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"};
 
 function sum(a,b) {
    return (a+b);
@@ -25,10 +25,15 @@ var datestarts = [];
 var wdate;
 
 function onChangeRequest(device, attribute, value) {
- 
 }
 
 function onConnect() {
+}
+
+function onDisconnect() {
+}
+
+function onPoll() {
     //calculate midnight time stamps in local time
     var m = new Date(Date.now());
     var t = new Date(m.getFullYear(), m.getMonth(), m.getDate(), 0, 0, 0);
@@ -39,69 +44,89 @@ function onConnect() {
     }
 
     //read weather data from met.no API
-    response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=60.24780&lon=24.76150&altitude=35",{headers: {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}});
+    response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + plugin.Settings["Latitude"] + "&lon=" + plugin.Settings["Longitude"] +"&altitude=" + plugin.Settings["Altitude"],{headers: {'User-Agent': "HomeRemote_MetnoWeatherPlugin"}});
     
-   // console.log(response.data.properties.timeseries[0].time);
-    //console.log(response.data.properties.timeseries[0].data.instant.details.air_temperature);
-    //console.log(response.data.properties.timeseries[1].time);
-    //console.log(response.data.properties.timeseries[1].data.instant.details.air_temperature);
-    
-    
-    var tempsum;
-    var tempcount;
+    var sums = {
+              air_pressure_at_sea_level_sum: 0,
+              air_temperature_sum: 0,
+              cloud_area_fraction_sum: 0,
+              relative_humidity_sum: 0,
+              wind_from_direction_sum: 0,
+              wind_speed_sum: 0
+    };
+    var datacount;
     
     //check which datapoints belong to each time window. met.no has more points for first days then less   
     for (i=0; i < 8; i++) {
-        console.log(i + "  " + datestarts[i]);
-        
-        tempsum = 0;
-        tempcount = 0;
+
+        sums.air_pressure_at_sea_level_sum = 0;
+        sums.air_temperature_sum = 0;
+        sums.cloud_area_fraction_sum = 0;
+        sums.relative_humidity_sum = 0;
+        sums.wind_from_direction_sum = 0;
+        sums.wind_speed_sum = 0;
+        datacount = 0;
 
         for (j in response.data.properties.timeseries) {
            dd = Date.parse(response.data.properties.timeseries[j].time);
             if((dd>=datestarts[i]) && (dd<datestarts[i+1])) {
-                tempsum = tempsum + response.data.properties.timeseries[j].data.instant.details.air_temperature;
-                tempcount++;
+                sums.air_pressure_at_sea_level_sum += response.data.properties.timeseries[j].data.instant.details.air_pressure_at_sea_level;
+                sums.air_temperature_sum += response.data.properties.timeseries[j].data.instant.details.air_temperature;
+                sums.cloud_area_fraction_sum += response.data.properties.timeseries[j].data.instant.details.cloud_area_fraction;
+                sums.relative_humidity_sum += response.data.properties.timeseries[j].data.instant.details.relative_humidity;
+                sums.wind_from_direction_sum += response.data.properties.timeseries[j].data.instant.details.wind_from_direction;
+                sums.wind_speed_sum += response.data.properties.timeseries[j].data.instant.details.wind_speed;
+               datacount++;
             }
         }
         
-        
-        
-        //take average as daily temperature
-        if(tempcount > 0) {
-           //weatherdata[i].temperature = Math.round(tempsum/tempcount);
-           weatherdata.push({temp:Math.round(tempsum/tempcount),ff:i});
+        //take average as daily value
+        if(datacount > 0) {
+           weatherdata.push({
+               air_pressure_at_sea_level:Math.round(sums.air_pressure_at_sea_level_sum/datacount),
+               air_temperature:Math.round(sums.air_temperature_sum/datacount),
+               cloud_area_fraction:Math.round(sums.cloud_area_fraction_sum/datacount),
+               relative_humidity:Math.round(sums.relative_humidity_sum/datacount),
+               wind_from_direction:Math.round(sums.wind_from_direction_sum/datacount),
+               wind_speed:Math.round(((sums.wind_speed_sum/datacount) * 10)) / 10
+           });
         }
         else {
-           //weatherdata[i].temperature = "";
            weatherdata.push(0);
         }
-        //console.log("t: " + weatherdaydata.temperature);
-        //weatherdaydata.humidity = response.data.properties.timeseries[j].data.instant.details.relative_humidity;
-        //weatherdaydata.windspeed = response.data.properties.timeseries[j].data.instant.details.wind_speed;
-        //weatherdaydata.description = response.data.properties.timeseries[j].data.next_12_hours.summary.symbol_code;
-        //weatherdata.push(uu); 
-
-        //console.log("count: " + tempcount);
      } 
      
-     for(i in weatherdata) {
-         console.log("ka: " + i + " " + JSON.stringify(weatherdata[i]));
-      }
-      
-}
-
-function onDisconnect() {
-}
-
-function onPoll() {
+    var device = plugin.Devices[1];
+    device.temperature1 =  weatherdata[1].air_temperature;
+    device.temperature2 =  weatherdata[2].air_temperature;
+    device.temperature3 =  weatherdata[3].air_temperature;
+    device.temperature4 =  weatherdata[4].air_temperature;
+    device.temperature5 =  weatherdata[5].air_temperature;
+    device.temperature6 =  weatherdata[6].air_temperature;
+    device.temperature7 =  weatherdata[7].air_temperature;
+    
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    device.weekday1 =  days[new Date(datestarts[1]).getDay()];
+    device.weekday2 =  days[new Date(datestarts[2]).getDay()];
+    device.weekday3 =  days[new Date(datestarts[3]).getDay()];
+    device.weekday4 =  days[new Date(datestarts[4]).getDay()];
+    device.weekday5 =  days[new Date(datestarts[5]).getDay()];
+    device.weekday6 =  days[new Date(datestarts[6]).getDay()];
+    device.weekday7 =  days[new Date(datestarts[7]).getDay()];
 }
 
 function onSynchronizeDevices() {
     var metno1 = new Device();
     metno1.Id = "1";
     metno1.DisplayName = "Metno 1";
-    metno1.Capabilities = ["TemperatureMeasurement"];
-    metno1.Attributes = ["Temperature"];
+    metno1.Capabilities = [];
+    metno1.Attributes = [
+    "temperature1","temperature2","temperature3","temperature4","temperature5","temperature6","temperature7",
+    "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7"
+    ];
+    //metno1.Attributes = ["weatherdata"];
+    //metno1.weatherdata = [{id:"0",air_pressure_at_sea_level: "0",air_temperature: "0",cloud_area_fraction: "0",relative_humidity: "0",wind_from_direction: "0",wind_speed: "0"},
+    //{id:"1",air_pressure_at_sea_level: "0",air_temperature: "0",cloud_area_fraction: "0",relative_humidity: "0",wind_from_direction: "0",wind_speed: "0"}];
+    
     plugin.Devices[metno1.Id] = metno1;
 }
