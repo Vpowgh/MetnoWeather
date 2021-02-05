@@ -1,3 +1,8 @@
+//MetnoWeather Plugin for HomeRemote
+//Seven days weather forecast using met.no API
+//Weather Data from MET Norway
+//Developed by Vpow 2021
+
 plugin.Name = "MetnoWeather";
 plugin.OnChangeRequest = onChangeRequest;
 plugin.OnConnect = onConnect;
@@ -7,35 +12,54 @@ plugin.OnSynchronizeDevices = onSynchronizeDevices;
 plugin.PollingInterval = 900000; //every 15min
 plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"};
 
-function sum(a,b) {
-   return (a+b);
-}
 
 var http = new HTTPClient();
-var response;
-var obj;
-var weatherdata = [];
-var weatherdaydata = {
-  temperature:0, 
-  humidity:0, 
-  windspeed:0,
-  description:""
-};
-var datestarts = [];
-var wdate;
+
 
 function onChangeRequest(device, attribute, value) {
 }
 
 function onConnect() {
+    //sanity check for coordinates
+    if(plugin.Settings["Latitude"] > 90.0) {
+        plugin.Settings["Latitude"] = 90.0;
+    }
+    else if(plugin.Settings["Latitude"] < -90.0) {
+        plugin.Settings["Latitude"] = -90.0;
+    }
+
+    if(plugin.Settings["Longitude"] > 180.0) {
+        plugin.Settings["Longitude"] = 180.0;
+    }
+    else if(plugin.Settings["Longitude"] < -180.0) {
+        plugin.Settings["Longitude"] = -180.0;
+    }
+
+    if(plugin.Settings["Altitude"] > 50000.0) {
+        plugin.Settings["Altitude"] = 50000.0;
+    }
+    else if(plugin.Settings["Altitude"] < 0.0) {
+        plugin.Settings["Altitude"] = 0.0;
+    }
 }
 
 function onDisconnect() {
 }
 
 function onPoll() {
+
+    //read weather data from met.no API
+    var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + plugin.Settings["Latitude"] + "&lon=" + plugin.Settings["Longitude"] +"&altitude=" + plugin.Settings["Altitude"],{headers: {'User-Agent': "HomeRemote_MetnoWeatherPlugin"}});
+    if(response.status != 200) {
+        return;
+    }
+
+    var weatherdata = [];
+    var datestarts = [];
+
     //calculate midnight time stamps in local time
     var m = new Date(Date.now());
+    m.setHours(m.getHours() - 11);
     var t = new Date(m.getFullYear(), m.getMonth(), m.getDate(), 0, 0, 0);
 
     for (i=0; i < 9; i++) {
@@ -43,16 +67,13 @@ function onPoll() {
         t.setDate(t.getDate() + 1);
     }
 
-    //read weather data from met.no API
-    response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + plugin.Settings["Latitude"] + "&lon=" + plugin.Settings["Longitude"] +"&altitude=" + plugin.Settings["Altitude"],{headers: {'User-Agent': "HomeRemote_MetnoWeatherPlugin"}});
-    
     var sums = {
-              air_pressure_at_sea_level_sum: 0,
-              air_temperature_sum: 0,
-              cloud_area_fraction_sum: 0,
-              relative_humidity_sum: 0,
-              wind_from_direction_sum: 0,
-              wind_speed_sum: 0
+        air_pressure_at_sea_level_sum: 0,
+        air_temperature_sum: 0,
+        cloud_area_fraction_sum: 0,
+        relative_humidity_sum: 0,
+        wind_from_direction_sum: 0,
+        wind_speed_sum: 0
     };
     var datacount;
     
@@ -67,8 +88,13 @@ function onPoll() {
         sums.wind_speed_sum = 0;
         datacount = 0;
 
-        for (j in response.data.properties.timeseries) {
-           dd = Date.parse(response.data.properties.timeseries[j].time);
+        var noontime = datestarts[i] + (datestarts[i+1] - datestarts[i])/2;
+        var noonindex = 0;
+        var noondiff = 86400000; //24h in ms
+        
+        for(j in response.data.properties.timeseries) {
+            dd = Date.parse(response.data.properties.timeseries[j].time);
+            
             if((dd>=datestarts[i]) && (dd<datestarts[i+1])) {
                 sums.air_pressure_at_sea_level_sum += response.data.properties.timeseries[j].data.instant.details.air_pressure_at_sea_level;
                 sums.air_temperature_sum += response.data.properties.timeseries[j].data.instant.details.air_temperature;
@@ -76,7 +102,15 @@ function onPoll() {
                 sums.relative_humidity_sum += response.data.properties.timeseries[j].data.instant.details.relative_humidity;
                 sums.wind_from_direction_sum += response.data.properties.timeseries[j].data.instant.details.wind_from_direction;
                 sums.wind_speed_sum += response.data.properties.timeseries[j].data.instant.details.wind_speed;
-               datacount++;
+                datacount++;
+            }
+            
+            //find closest to noon
+            var ndiff = Math.abs(dd-noontime);
+            
+            if(ndiff  < noondiff) {
+                noondiff = ndiff;
+                noonindex = j;
             }
         }
         
@@ -88,14 +122,15 @@ function onPoll() {
                cloud_area_fraction:Math.round(sums.cloud_area_fraction_sum/datacount),
                relative_humidity:Math.round(sums.relative_humidity_sum/datacount),
                wind_from_direction:Math.round(sums.wind_from_direction_sum/datacount),
-               wind_speed:Math.round(((sums.wind_speed_sum/datacount) * 10)) / 10
+               wind_speed:Math.round(((sums.wind_speed_sum/datacount) * 10)) / 10,
+               symbol:response.data.properties.timeseries[noonindex].data.next_6_hours.summary.symbol_code
            });
         }
         else {
            weatherdata.push(0);
         }
-     } 
-     
+     }
+
     var device = plugin.Devices[1];
     device.temperature1 =  weatherdata[1].air_temperature;
     device.temperature2 =  weatherdata[2].air_temperature;
@@ -104,6 +139,14 @@ function onPoll() {
     device.temperature5 =  weatherdata[5].air_temperature;
     device.temperature6 =  weatherdata[6].air_temperature;
     device.temperature7 =  weatherdata[7].air_temperature;
+
+    device.symbol1 =  weatherdata[1].symbol + ".png";
+    device.symbol2 =  weatherdata[2].symbol + ".png";
+    device.symbol3 =  weatherdata[3].symbol + ".png";
+    device.symbol4 =  weatherdata[4].symbol + ".png";
+    device.symbol5 =  weatherdata[5].symbol + ".png";
+    device.symbol6 =  weatherdata[6].symbol + ".png";
+    device.symbol7 =  weatherdata[7].symbol + ".png";
     
     var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     device.weekday1 =  days[new Date(datestarts[1]).getDay()];
@@ -122,11 +165,9 @@ function onSynchronizeDevices() {
     metno1.Capabilities = [];
     metno1.Attributes = [
     "temperature1","temperature2","temperature3","temperature4","temperature5","temperature6","temperature7",
-    "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7"
+    "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
+    "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7"
     ];
-    //metno1.Attributes = ["weatherdata"];
-    //metno1.weatherdata = [{id:"0",air_pressure_at_sea_level: "0",air_temperature: "0",cloud_area_fraction: "0",relative_humidity: "0",wind_from_direction: "0",wind_speed: "0"},
-    //{id:"1",air_pressure_at_sea_level: "0",air_temperature: "0",cloud_area_fraction: "0",relative_humidity: "0",wind_from_direction: "0",wind_speed: "0"}];
-    
+
     plugin.Devices[metno1.Id] = metno1;
 }
