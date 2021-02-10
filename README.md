@@ -1,5 +1,5 @@
 # MetnoWeather
-Plug-in for HomeRemote providing weather information from met.no API
+Plug-in for HomeRemote providing weather information from met.no API.
 
 # Features
 Reads seven days weather forecast from met.no (The Norwegian Meteorological Institute) based on given latitude, longitude and altitude. Saves weekday name, forecasted temperature and icon name for each seven coming days.
