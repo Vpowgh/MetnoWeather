@@ -49,7 +49,7 @@ function onDisconnect() {
 function onPoll() {
 
     //read weather data from met.no API
-    var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + plugin.Settings["Latitude"] + "&lon=" + plugin.Settings["Longitude"] +"&altitude=" + plugin.Settings["Altitude"],{headers: {'User-Agent': "HomeRemote_MetnoWeatherPlugin"}});
+    var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + plugin.Settings["Latitude"] + "&lon=" + plugin.Settings["Longitude"] +"&altitude=" + plugin.Settings["Altitude"],{headers: {'User-Agent': "HomeRemote_MetnoWeatherPlugin"}, timeout: 10000});
     if(response.status != 200) {
         return;
     }
@@ -59,8 +59,9 @@ function onPoll() {
 
     //calculate midnight time stamps in local time
     var m = new Date(Date.now());
-    m.setHours(m.getHours() - 11);
     var t = new Date(m.getFullYear(), m.getMonth(), m.getDate(), 0, 0, 0);
+    //use this if want to show other timezone, add offset relative to local timezone
+    //var t = new Date(m.getFullYear(), m.getMonth(), m.getDate(), m.getHours()-11, 0, 0);
 
     for (i=0; i < 9; i++) {
         datestarts[i] = Date.parse(t); //the first timestamp is last midnight
@@ -76,9 +77,10 @@ function onPoll() {
         wind_speed_sum: 0
     };
     var datacount;
+    var jstart = 0;
     
     //check which datapoints belong to each time window. met.no has more points for first days then less   
-    for (i=0; i < 8; i++) {
+    for(i=0; i < 8; i++) {
 
         sums.air_pressure_at_sea_level_sum = 0;
         sums.air_temperature_sum = 0;
@@ -92,10 +94,14 @@ function onPoll() {
         var noonindex = 0;
         var noondiff = 86400000; //24h in ms
         
-        for(j in response.data.properties.timeseries) {
+        for(j=jstart; j < Object.keys(response.data.properties.timeseries).length; j++) {
             dd = Date.parse(response.data.properties.timeseries[j].time);
             
-            if((dd>=datestarts[i]) && (dd<datestarts[i+1])) {
+            if(dd>datestarts[i+1]) {
+                jstart = j;
+                break;
+            }
+            else if(dd>=datestarts[i]) {
                 sums.air_pressure_at_sea_level_sum += response.data.properties.timeseries[j].data.instant.details.air_pressure_at_sea_level;
                 sums.air_temperature_sum += response.data.properties.timeseries[j].data.instant.details.air_temperature;
                 sums.cloud_area_fraction_sum += response.data.properties.timeseries[j].data.instant.details.cloud_area_fraction;
@@ -105,7 +111,7 @@ function onPoll() {
                 datacount++;
             }
             
-            //find closest to noon
+            //find closest to noon datapoint and use symbol from that
             var ndiff = Math.abs(dd-noontime);
             
             if(ndiff  < noondiff) {
@@ -113,9 +119,24 @@ function onPoll() {
                 noonindex = j;
             }
         }
-        
-        //take average as daily value
+
+        //take averages as daily values
         if(datacount > 0) {
+           //datapoints might have any combination of available symbols
+           var ssymbol;
+           if(response.data.properties.timeseries[noonindex].data.hasOwnProperty('next_6_hours')) {
+               ssymbol = response.data.properties.timeseries[noonindex].data.next_6_hours.summary.symbol_code
+           }
+           else if(response.data.properties.timeseries[noonindex].data.hasOwnProperty('next_12_hours')) {
+               ssymbol = response.data.properties.timeseries[noonindex].data.next_12_hours.summary.symbol_code
+           }
+           else if(response.data.properties.timeseries[noonindex].data.hasOwnProperty('next_1_hours')) {
+               ssymbol = response.data.properties.timeseries[noonindex].data.next_1_hours.summary.symbol_code
+           }
+           else {
+               ssymbol = "fair_day"; //give fair day if nothing else found!
+           }
+           
            weatherdata.push({
                air_pressure_at_sea_level:Math.round(sums.air_pressure_at_sea_level_sum/datacount),
                air_temperature:Math.round(sums.air_temperature_sum/datacount),
@@ -123,7 +144,7 @@ function onPoll() {
                relative_humidity:Math.round(sums.relative_humidity_sum/datacount),
                wind_from_direction:Math.round(sums.wind_from_direction_sum/datacount),
                wind_speed:Math.round(((sums.wind_speed_sum/datacount) * 10)) / 10,
-               symbol:response.data.properties.timeseries[noonindex].data.next_6_hours.summary.symbol_code
+               symbol:ssymbol
            });
         }
         else {
@@ -168,6 +189,6 @@ function onSynchronizeDevices() {
     "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
     "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7"
     ];
-
+    
     plugin.Devices[metno1.Id] = metno1;
 }
