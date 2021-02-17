@@ -16,11 +16,12 @@ Import plugin code to HomeRemote project.
 Import icon pictures in png format to HomeRemote project. Icons can be downloaded from link below.
 
 The plugin uses following attributes to store data:
+>    "temperature_now", "weekday_now", "symbol_now", "airpressure_now", "cloudareafraction_now", "humidity_now", "winddirection_now", "windspeed_now",
 >    "temperature1","temperature2","temperature3","temperature4","temperature5","temperature6","temperature7",
 >    "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
 >    "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7"
 
-Number 1 variables are for following day (tomorrow) and then for each following day 2,3...7.
+"_now" variables are for current conditions. Number 1 variables are for following day (tomorrow) and then for each following day 2,3...7.
 
 # Links
 
