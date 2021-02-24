@@ -15,6 +15,7 @@ plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"
 //info for user agent
 var VERSION = "v1.1";
 var UALINK = "github.com/Vpowgh/MetnoWeather";
+var USERAGENT = "HomeRemote_MetnoWeatherPlugin "+VERSION+" "+UALINK;
 
 //internal copy of settings
 var int_settings = {
@@ -70,8 +71,8 @@ function onDisconnect() {
 function onPoll() {
 
     //read weather data from met.no API
-    //met.no TOS: must send in user agent application name, version, developer info
-    var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + int_settings.latitude + "&lon=" + int_settings.longitude +"&altitude=" + int_settings.altitude,{headers: {'User-Agent': "HomeRemote_MetnoWeatherPlugin "+VERSION+" "+UALINK}, timeout: 10000});
+    //met.no TOS: must send in user agent application name, version, developer info, must use https
+    var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + int_settings.latitude + "&lon=" + int_settings.longitude +"&altitude=" + int_settings.altitude,{headers: {'User-Agent': USERAGENT}, timeout: 10000});
     if(response.status != 200) {
         return;
     }
@@ -189,33 +190,15 @@ function onPoll() {
     }
 
     var device = plugin.Devices[1];
-
-    //update forecast values for next 7 days
-    device.temperature1 = weatherdata[1].air_temperature;
-    device.temperature2 = weatherdata[2].air_temperature;
-    device.temperature3 = weatherdata[3].air_temperature;
-    device.temperature4 = weatherdata[4].air_temperature;
-    device.temperature5 = weatherdata[5].air_temperature;
-    device.temperature6 = weatherdata[6].air_temperature;
-    device.temperature7 = weatherdata[7].air_temperature;
-
-    device.symbol1 = weatherdata[1].symbol + ".png";
-    device.symbol2 = weatherdata[2].symbol + ".png";
-    device.symbol3 = weatherdata[3].symbol + ".png";
-    device.symbol4 = weatherdata[4].symbol + ".png";
-    device.symbol5 = weatherdata[5].symbol + ".png";
-    device.symbol6 = weatherdata[6].symbol + ".png";
-    device.symbol7 = weatherdata[7].symbol + ".png";
-    
     var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    device.weekday1 = days[new Date(datestarts[1]).getDay()];
-    device.weekday2 = days[new Date(datestarts[2]).getDay()];
-    device.weekday3 = days[new Date(datestarts[3]).getDay()];
-    device.weekday4 = days[new Date(datestarts[4]).getDay()];
-    device.weekday5 = days[new Date(datestarts[5]).getDay()];
-    device.weekday6 = days[new Date(datestarts[6]).getDay()];
-    device.weekday7 = days[new Date(datestarts[7]).getDay()];
-
+    
+    //update forecast values for next 7 days
+    for(i=1; i < 8; i++) {
+        device['temperature'+i]   = weatherdata[i].air_temperature;
+        device['symbol'+i]        = weatherdata[i].symbol + ".png";
+        device['weekday'+i]       = days[new Date(datestarts[i]).getDay()];
+    }
+    
     //update now values
     device.weekday_now =            days[m.getDay()];
     device.airpressure_now =        response.data.properties.timeseries[nowindex].data.instant.details.air_pressure_at_sea_level;
