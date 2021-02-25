@@ -26,12 +26,12 @@ The plugin uses following attributes to store data:
 # Release notes
 v1.1 
 - Added "now" values for current conditions. In reality these values are from forecast point which is closest in time as met.no API does not return any realtime measured values.
-- Better compliancy to met.no Terms Of Service: coordinates truncated to 4 decimals, more information to user agent header, 
-- Fixed sanity checks for coordinates
-- Added handling for other than status 200 responses from server
+- Better compliancy to met.no Terms Of Service: coordinates truncated to 4 decimals, more information to user agent header.
+- Fixed sanity checks for coordinates.
+- Added handling for other than status 200 responses from server.
 
 v1.0 
-- Initial release
+- Initial release.
 
 # Links
 
