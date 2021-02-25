@@ -9,9 +9,20 @@ plugin.OnConnect = onConnect;
 plugin.OnDisconnect = onDisconnect;
 plugin.OnPoll = onPoll;
 plugin.OnSynchronizeDevices = onSynchronizeDevices;
-plugin.PollingInterval = 900000; //every 15min
+plugin.PollingInterval = 900000; //every 15min. met.no TOS: do not poll too often
 plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"};
 
+//info for user agent
+var VERSION = "v1.1";
+var UALINK = "github.com/Vpowgh/MetnoWeather";
+var USERAGENT = "HomeRemote_MetnoWeatherPlugin "+VERSION+" "+UALINK;
+
+//internal copy of settings
+var int_settings = {
+    latitide: 0,
+    longitude: 0,
+    altitude: 0
+};
 
 var http = new HTTPClient();
 
@@ -20,27 +31,38 @@ function onChangeRequest(device, attribute, value) {
 }
 
 function onConnect() {
+    var lat, lon, alt;
+    
+    //met.no TOS: max. 4 decimals for coordinates
+    lat = Math.round(plugin.Settings["Latitude"] * 10000) / 10000;
+    lon = Math.round(plugin.Settings["Longitude"] * 10000) / 10000;
+    alt = Math.round(plugin.Settings["Altitude"] * 10000) / 10000;
+    
     //sanity check for coordinates
-    if(plugin.Settings["Latitude"] > 90.0) {
-        plugin.Settings["Latitude"] = 90.0;
+    if(lat > 90.0) {
+        lat = 90.0;
     }
-    else if(plugin.Settings["Latitude"] < -90.0) {
-        plugin.Settings["Latitude"] = -90.0;
-    }
-
-    if(plugin.Settings["Longitude"] > 180.0) {
-        plugin.Settings["Longitude"] = 180.0;
-    }
-    else if(plugin.Settings["Longitude"] < -180.0) {
-        plugin.Settings["Longitude"] = -180.0;
+    else if(lat < -90.0) {
+        lat = -90.0;
     }
 
-    if(plugin.Settings["Altitude"] > 50000.0) {
-        plugin.Settings["Altitude"] = 50000.0;
+    if(lon > 180.0) {
+        lon = 180.0;
     }
-    else if(plugin.Settings["Altitude"] < 0.0) {
-        plugin.Settings["Altitude"] = 0.0;
+    else if(lon < -180.0) {
+        lon = -180.0;
     }
+
+    if(alt > 50000.0) {
+        alt = 50000.0;
+    }
+    else if(alt < 0.0) {
+        alt = 0.0;
+    }
+    
+    int_settings.latitude = lat;
+    int_settings.longitude = lon;
+    int_settings.altitude = alt;
 }
 
 function onDisconnect() {
@@ -49,7 +71,15 @@ function onDisconnect() {
 function onPoll() {
 
     //read weather data from met.no API
-    var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + plugin.Settings["Latitude"] + "&lon=" + plugin.Settings["Longitude"] +"&altitude=" + plugin.Settings["Altitude"],{headers: {'User-Agent': "HomeRemote_MetnoWeatherPlugin"}, timeout: 10000});
+    //met.no TOS: must send in user agent application name, version, developer info, must use https
+    try {
+        var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + int_settings.latitude + "&lon=" + int_settings.longitude +"&altitude=" + int_settings.altitude,{headers: {'User-Agent': USERAGENT}, timeout: 10000});
+    } catch(err) {
+        //other than status 200 responses end up here
+        //console.log(err.message);
+        return;
+    }
+    
     if(response.status != 200) {
         return;
     }
@@ -78,8 +108,10 @@ function onPoll() {
     };
     var datacount;
     var jstart = 0;
-    
-    //check which datapoints belong to each time window. met.no has more points for first days then less   
+
+    var nowindex = 0;
+
+    //check which datapoints belong to each time window. met.no has more points for first days then less
     for(i=0; i < 8; i++) {
 
         sums.air_pressure_at_sea_level_sum = 0;
@@ -94,9 +126,21 @@ function onPoll() {
         var noonindex = 0;
         var noondiff = 86400000; //24h in ms
         
+        var nowdiff = 86400000;
+        var datenow = Date.parse(m);
+
         for(j=jstart; j < Object.keys(response.data.properties.timeseries).length; j++) {
             dd = Date.parse(response.data.properties.timeseries[j].time);
             
+            //check first values which point is closest to now
+            if(j<4) {
+                var ndiff = Math.abs(dd-datenow);
+                if(ndiff < nowdiff) {
+                    nowdiff = ndiff;
+                    nowindex = j;
+                }
+            }
+
             if(dd>datestarts[i+1]) {
                 jstart = j;
                 break;
@@ -110,7 +154,7 @@ function onPoll() {
                 sums.wind_speed_sum += response.data.properties.timeseries[j].data.instant.details.wind_speed;
                 datacount++;
             }
-            
+
             //find closest to noon datapoint and use symbol from that
             var ndiff = Math.abs(dd-noontime);
             
@@ -150,33 +194,41 @@ function onPoll() {
         else {
            weatherdata.push(0);
         }
-     }
+    }
 
     var device = plugin.Devices[1];
-    device.temperature1 =  weatherdata[1].air_temperature;
-    device.temperature2 =  weatherdata[2].air_temperature;
-    device.temperature3 =  weatherdata[3].air_temperature;
-    device.temperature4 =  weatherdata[4].air_temperature;
-    device.temperature5 =  weatherdata[5].air_temperature;
-    device.temperature6 =  weatherdata[6].air_temperature;
-    device.temperature7 =  weatherdata[7].air_temperature;
-
-    device.symbol1 =  weatherdata[1].symbol + ".png";
-    device.symbol2 =  weatherdata[2].symbol + ".png";
-    device.symbol3 =  weatherdata[3].symbol + ".png";
-    device.symbol4 =  weatherdata[4].symbol + ".png";
-    device.symbol5 =  weatherdata[5].symbol + ".png";
-    device.symbol6 =  weatherdata[6].symbol + ".png";
-    device.symbol7 =  weatherdata[7].symbol + ".png";
-    
     var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    device.weekday1 =  days[new Date(datestarts[1]).getDay()];
-    device.weekday2 =  days[new Date(datestarts[2]).getDay()];
-    device.weekday3 =  days[new Date(datestarts[3]).getDay()];
-    device.weekday4 =  days[new Date(datestarts[4]).getDay()];
-    device.weekday5 =  days[new Date(datestarts[5]).getDay()];
-    device.weekday6 =  days[new Date(datestarts[6]).getDay()];
-    device.weekday7 =  days[new Date(datestarts[7]).getDay()];
+    
+    //update forecast values for next 7 days
+    for(i=1; i < 8; i++) {
+        device['temperature'+i]   = weatherdata[i].air_temperature;
+        device['symbol'+i]        = weatherdata[i].symbol + ".png";
+        device['weekday'+i]       = days[new Date(datestarts[i]).getDay()];
+    }
+    
+    //update now values
+    device.weekday_now =            days[m.getDay()];
+    device.airpressure_now =        response.data.properties.timeseries[nowindex].data.instant.details.air_pressure_at_sea_level;
+    device.temperature_now =        response.data.properties.timeseries[nowindex].data.instant.details.air_temperature;
+    device.cloudareafraction_now =  response.data.properties.timeseries[nowindex].data.instant.details.cloud_area_fraction;
+    device.humidity_now =           response.data.properties.timeseries[nowindex].data.instant.details.relative_humidity;
+    device.winddirection_now =      response.data.properties.timeseries[nowindex].data.instant.details.wind_from_direction;
+    device.windspeed_now =          response.data.properties.timeseries[nowindex].data.instant.details.wind_speed;
+    
+    var ssymbol;
+    if(response.data.properties.timeseries[nowindex].data.hasOwnProperty('next_1_hours')) {
+       ssymbol = response.data.properties.timeseries[nowindex].data.next_1_hours.summary.symbol_code
+    }
+    else if(response.data.properties.timeseries[nowindex].data.hasOwnProperty('next_6_hours')) {
+       ssymbol = response.data.properties.timeseries[nowindex].data.next_6_hours.summary.symbol_code
+    }
+    else if(response.data.properties.timeseries[nowindex].data.hasOwnProperty('next_12_hours')) {
+       ssymbol = response.data.properties.timeseries[nowindex].data.next_12_hours.summary.symbol_code
+    }
+    else {
+       ssymbol = "fair_day"; //give fair day if nothing else found!
+    }
+    device.symbol_now = ssymbol + ".png";
 }
 
 function onSynchronizeDevices() {
@@ -185,6 +237,7 @@ function onSynchronizeDevices() {
     metno1.DisplayName = "Metno 1";
     metno1.Capabilities = [];
     metno1.Attributes = [
+    "temperature_now", "weekday_now", "symbol_now", "airpressure_now", "cloudareafraction_now", "humidity_now", "winddirection_now", "windspeed_now",
     "temperature1","temperature2","temperature3","temperature4","temperature5","temperature6","temperature7",
     "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
     "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7"
