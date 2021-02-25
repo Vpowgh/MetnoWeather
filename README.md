@@ -21,10 +21,9 @@ The plugin uses following attributes to store data:
 >    "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
 >    "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7"
 
-"_now" variables are for current conditions. Number 1 variables are for following day (tomorrow) and then for each following day 2,3...7.
+"now" variables are for current conditions. Number 1 variables are for following day (tomorrow) and then for each following day 2,3...7.
 
-
-#Release notes
+# Release notes
 v1.1 
 - Added "now" values for current conditions. In reality these values are from forecast point which is closest in time as met.no API does not return any realtime measured values.
 - Better compliancy to met.no Terms Of Service: coordinates truncated to 4 decimals, more information to user agent header, 
