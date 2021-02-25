@@ -9,7 +9,7 @@ plugin.OnConnect = onConnect;
 plugin.OnDisconnect = onDisconnect;
 plugin.OnPoll = onPoll;
 plugin.OnSynchronizeDevices = onSynchronizeDevices;
-plugin.PollingInterval = 900000; //every 15min
+plugin.PollingInterval = 900000; //every 15min. met.no TOS: do not poll too often
 plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"};
 
 //info for user agent
@@ -72,7 +72,14 @@ function onPoll() {
 
     //read weather data from met.no API
     //met.no TOS: must send in user agent application name, version, developer info, must use https
-    var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + int_settings.latitude + "&lon=" + int_settings.longitude +"&altitude=" + int_settings.altitude,{headers: {'User-Agent': USERAGENT}, timeout: 10000});
+    try {
+        var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + int_settings.latitude + "&lon=" + int_settings.longitude +"&altitude=" + int_settings.altitude,{headers: {'User-Agent': USERAGENT}, timeout: 10000});
+    } catch(err) {
+        //other than status 200 responses end up here
+        //console.log(err.message);
+        return;
+    }
+    
     if(response.status != 200) {
         return;
     }
