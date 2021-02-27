@@ -9,7 +9,7 @@ plugin.OnConnect = onConnect;
 plugin.OnDisconnect = onDisconnect;
 plugin.OnPoll = onPoll;
 plugin.OnSynchronizeDevices = onSynchronizeDevices;
-plugin.PollingInterval = 10000; //every 15min. met.no TOS: do not poll too often
+plugin.PollingInterval = 900000; //every 15min. met.no TOS: do not poll too often
 plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"};
 
 //info for user agent
