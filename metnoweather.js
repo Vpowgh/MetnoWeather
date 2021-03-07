@@ -13,7 +13,7 @@ plugin.PollingInterval = 900000; //every 15min. met.no TOS: do not poll too ofte
 plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"};
 
 //info for user agent
-var VERSION = "v1.2b";
+var VERSION = "v1.2";
 var UALINK = "github.com/Vpowgh/MetnoWeather";
 var USERAGENT = "HomeRemote_MetnoWeatherPlugin "+VERSION+" "+UALINK;
 
