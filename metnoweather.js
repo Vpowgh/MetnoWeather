@@ -13,7 +13,7 @@ plugin.PollingInterval = 900000; //every 15min. met.no TOS: do not poll too ofte
 plugin.DefaultSettings = { "Latitude": "0.0", "Longitude": "0.0","Altitude": "0"};
 
 //info for user agent
-var VERSION = "v1.1";
+var VERSION = "v1.2";
 var UALINK = "github.com/Vpowgh/MetnoWeather";
 var USERAGENT = "HomeRemote_MetnoWeatherPlugin "+VERSION+" "+UALINK;
 
@@ -25,7 +25,8 @@ var int_settings = {
 };
 
 var http = new HTTPClient();
-
+var lastModified = "";
+var cachedResponse = {};
 
 function onChangeRequest(device, attribute, value) {
 }
@@ -68,20 +69,37 @@ function onConnect() {
 function onDisconnect() {
 }
 
+
+
 function onPoll() {
+    var httpOptions = {
+        headers: {'User-Agent': USERAGENT}, 
+        timeout: 10000
+    };
+
+    //met.no TOS: use If-Modified-Since header with date from Last-Modified header
+    if(lastModified != "") {
+        httpOptions.headers["If-Modified-Since"] = lastModified;
+    }
 
     //read weather data from met.no API
     //met.no TOS: must send in user agent application name, version, developer info, must use https
     try {
-        var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + int_settings.latitude + "&lon=" + int_settings.longitude +"&altitude=" + int_settings.altitude,{headers: {'User-Agent': USERAGENT}, timeout: 10000});
+        var response = http.get("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + int_settings.latitude + "&lon=" + int_settings.longitude +"&altitude=" + int_settings.altitude,httpOptions);
     } catch(err) {
-        //other than status 200 responses end up here
+        //other than status 200 responses end up here, since HR treats them as exceptions
         //console.log(err.message);
-        return;
     }
-    
-    if(response.status != 200) {
-        return;
+
+    if(typeof response != "undefined") { //200 response received, update cache and last modified info
+        cachedResponse = JSON.parse(JSON.stringify(response.data));
+
+        if(response.headers["Last-Modified"] != "undefined") {
+            lastModified = response.headers["Last-Modified"];
+        }
+        else {
+            lastModified = "";
+        }
     }
 
     var weatherdata = [];
@@ -129,8 +147,8 @@ function onPoll() {
         var nowdiff = 86400000;
         var datenow = Date.parse(m);
 
-        for(j=jstart; j < Object.keys(response.data.properties.timeseries).length; j++) {
-            dd = Date.parse(response.data.properties.timeseries[j].time);
+        for(j=jstart; j < Object.keys(cachedResponse.properties.timeseries).length; j++) {
+            dd = Date.parse(cachedResponse.properties.timeseries[j].time);
             
             //check first values which point is closest to now
             if(j<4) {
@@ -146,12 +164,12 @@ function onPoll() {
                 break;
             }
             else if(dd>=datestarts[i]) {
-                sums.air_pressure_at_sea_level_sum += response.data.properties.timeseries[j].data.instant.details.air_pressure_at_sea_level;
-                sums.air_temperature_sum += response.data.properties.timeseries[j].data.instant.details.air_temperature;
-                sums.cloud_area_fraction_sum += response.data.properties.timeseries[j].data.instant.details.cloud_area_fraction;
-                sums.relative_humidity_sum += response.data.properties.timeseries[j].data.instant.details.relative_humidity;
-                sums.wind_from_direction_sum += response.data.properties.timeseries[j].data.instant.details.wind_from_direction;
-                sums.wind_speed_sum += response.data.properties.timeseries[j].data.instant.details.wind_speed;
+                sums.air_pressure_at_sea_level_sum += cachedResponse.properties.timeseries[j].data.instant.details.air_pressure_at_sea_level;
+                sums.air_temperature_sum += cachedResponse.properties.timeseries[j].data.instant.details.air_temperature;
+                sums.cloud_area_fraction_sum += cachedResponse.properties.timeseries[j].data.instant.details.cloud_area_fraction;
+                sums.relative_humidity_sum += cachedResponse.properties.timeseries[j].data.instant.details.relative_humidity;
+                sums.wind_from_direction_sum += cachedResponse.properties.timeseries[j].data.instant.details.wind_from_direction;
+                sums.wind_speed_sum += cachedResponse.properties.timeseries[j].data.instant.details.wind_speed;
                 datacount++;
             }
 
@@ -168,14 +186,14 @@ function onPoll() {
         if(datacount > 0) {
            //datapoints might have any combination of available symbols
            var ssymbol;
-           if(response.data.properties.timeseries[noonindex].data.hasOwnProperty('next_6_hours')) {
-               ssymbol = response.data.properties.timeseries[noonindex].data.next_6_hours.summary.symbol_code
+           if(cachedResponse.properties.timeseries[noonindex].data.hasOwnProperty('next_6_hours')) {
+               ssymbol = cachedResponse.properties.timeseries[noonindex].data.next_6_hours.summary.symbol_code
            }
-           else if(response.data.properties.timeseries[noonindex].data.hasOwnProperty('next_12_hours')) {
-               ssymbol = response.data.properties.timeseries[noonindex].data.next_12_hours.summary.symbol_code
+           else if(cachedResponse.properties.timeseries[noonindex].data.hasOwnProperty('next_12_hours')) {
+               ssymbol = cachedResponse.properties.timeseries[noonindex].data.next_12_hours.summary.symbol_code
            }
-           else if(response.data.properties.timeseries[noonindex].data.hasOwnProperty('next_1_hours')) {
-               ssymbol = response.data.properties.timeseries[noonindex].data.next_1_hours.summary.symbol_code
+           else if(cachedResponse.properties.timeseries[noonindex].data.hasOwnProperty('next_1_hours')) {
+               ssymbol = cachedResponse.properties.timeseries[noonindex].data.next_1_hours.summary.symbol_code
            }
            else {
                ssymbol = "fair_day"; //give fair day if nothing else found!
@@ -208,22 +226,22 @@ function onPoll() {
     
     //update now values
     device.weekday_now =            days[m.getDay()];
-    device.airpressure_now =        response.data.properties.timeseries[nowindex].data.instant.details.air_pressure_at_sea_level;
-    device.temperature_now =        response.data.properties.timeseries[nowindex].data.instant.details.air_temperature;
-    device.cloudareafraction_now =  response.data.properties.timeseries[nowindex].data.instant.details.cloud_area_fraction;
-    device.humidity_now =           response.data.properties.timeseries[nowindex].data.instant.details.relative_humidity;
-    device.winddirection_now =      response.data.properties.timeseries[nowindex].data.instant.details.wind_from_direction;
-    device.windspeed_now =          response.data.properties.timeseries[nowindex].data.instant.details.wind_speed;
+    device.airpressure_now =        cachedResponse.properties.timeseries[nowindex].data.instant.details.air_pressure_at_sea_level;
+    device.temperature_now =        cachedResponse.properties.timeseries[nowindex].data.instant.details.air_temperature;
+    device.cloudareafraction_now =  cachedResponse.properties.timeseries[nowindex].data.instant.details.cloud_area_fraction;
+    device.humidity_now =           cachedResponse.properties.timeseries[nowindex].data.instant.details.relative_humidity;
+    device.winddirection_now =      cachedResponse.properties.timeseries[nowindex].data.instant.details.wind_from_direction;
+    device.windspeed_now =          cachedResponse.properties.timeseries[nowindex].data.instant.details.wind_speed;
     
     var ssymbol;
-    if(response.data.properties.timeseries[nowindex].data.hasOwnProperty('next_1_hours')) {
-       ssymbol = response.data.properties.timeseries[nowindex].data.next_1_hours.summary.symbol_code
+    if(cachedResponse.properties.timeseries[nowindex].data.hasOwnProperty('next_1_hours')) {
+       ssymbol = cachedResponse.properties.timeseries[nowindex].data.next_1_hours.summary.symbol_code
     }
-    else if(response.data.properties.timeseries[nowindex].data.hasOwnProperty('next_6_hours')) {
-       ssymbol = response.data.properties.timeseries[nowindex].data.next_6_hours.summary.symbol_code
+    else if(cachedResponse.properties.timeseries[nowindex].data.hasOwnProperty('next_6_hours')) {
+       ssymbol = cachedResponse.properties.timeseries[nowindex].data.next_6_hours.summary.symbol_code
     }
-    else if(response.data.properties.timeseries[nowindex].data.hasOwnProperty('next_12_hours')) {
-       ssymbol = response.data.properties.timeseries[nowindex].data.next_12_hours.summary.symbol_code
+    else if(cachedResponse.properties.timeseries[nowindex].data.hasOwnProperty('next_12_hours')) {
+       ssymbol = cachedResponse.properties.timeseries[nowindex].data.next_12_hours.summary.symbol_code
     }
     else {
        ssymbol = "fair_day"; //give fair day if nothing else found!
