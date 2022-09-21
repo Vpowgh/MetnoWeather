@@ -34,10 +34,10 @@ function onChangeRequest(device, attribute, value) {
 function onConnect() {
     var lat, lon, alt;
     
-    //met.no TOS: max. 4 decimals for coordinates
+    //met.no TOS: max. 4 decimals for coordinates, altitude is integer
     lat = Math.round(plugin.Settings["Latitude"] * 10000) / 10000;
     lon = Math.round(plugin.Settings["Longitude"] * 10000) / 10000;
-    alt = Math.round(plugin.Settings["Altitude"] * 10000) / 10000;
+    alt = Math.round(plugin.Settings["Altitude"]);
     
     //sanity check for coordinates
     if(lat > 90.0) {
@@ -147,9 +147,10 @@ function onPoll() {
         var nowdiff = 86400000;
         var datenow = Date.parse(m);
 
+        //collect all temperatures for minmax detection
+        var daytemps = [];
+
         for(j=jstart; j < Object.keys(cachedResponse.properties.timeseries).length; j++) {
-            //collect all temperatures for minmax detection
-            var daytemps = [];
             
             dd = Date.parse(cachedResponse.properties.timeseries[j].time);
             
@@ -211,8 +212,8 @@ function onPoll() {
                wind_from_direction:Math.round(sums.wind_from_direction_sum/datacount),
                wind_speed:Math.round(((sums.wind_speed_sum/datacount) * 10)) / 10,
                symbol:ssymbol,
-               temperature_min:Math.round(Math.min(daytemps)),
-               temperature_max:Math.round(Math.max(daytemps))
+               temperature_min:Math.round(Math.min.apply(Math, daytemps)),
+               temperature_max:Math.round(Math.max.apply(Math, daytemps))
            });
         }
         else {
