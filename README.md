@@ -28,6 +28,7 @@ The plugin uses following attributes to store data:
 # Release notes
 v1.3
 - Add daily high and low temperatures.
+- Altitude truncated to integer as it should be given as whole meters.
 
 v1.2
 - Better compliancy to met.no Terms Of Service: Using If-Modified-Since headers for queries.
