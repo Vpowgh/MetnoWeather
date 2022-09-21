@@ -148,6 +148,9 @@ function onPoll() {
         var datenow = Date.parse(m);
 
         for(j=jstart; j < Object.keys(cachedResponse.properties.timeseries).length; j++) {
+            //collect all temperatures for minmax detection
+            var daytemps = [];
+            
             dd = Date.parse(cachedResponse.properties.timeseries[j].time);
             
             //check first values which point is closest to now
@@ -170,6 +173,7 @@ function onPoll() {
                 sums.relative_humidity_sum += cachedResponse.properties.timeseries[j].data.instant.details.relative_humidity;
                 sums.wind_from_direction_sum += cachedResponse.properties.timeseries[j].data.instant.details.wind_from_direction;
                 sums.wind_speed_sum += cachedResponse.properties.timeseries[j].data.instant.details.wind_speed;
+                daytemps.push(cachedResponse.properties.timeseries[j].data.instant.details.air_temperature);
                 datacount++;
             }
 
@@ -206,7 +210,9 @@ function onPoll() {
                relative_humidity:Math.round(sums.relative_humidity_sum/datacount),
                wind_from_direction:Math.round(sums.wind_from_direction_sum/datacount),
                wind_speed:Math.round(((sums.wind_speed_sum/datacount) * 10)) / 10,
-               symbol:ssymbol
+               symbol:ssymbol,
+               temperature_min:Math.round(Math.min(daytemps)),
+               temperature_max:Math.round(Math.max(daytemps))
            });
         }
         else {
@@ -222,6 +228,8 @@ function onPoll() {
         device['temperature'+i]   = weatherdata[i].air_temperature;
         device['symbol'+i]        = weatherdata[i].symbol + ".png";
         device['weekday'+i]       = days[new Date(datestarts[i]).getDay()];
+        device['tempmin'+i]       = weatherdata[i].temperature_min;
+        device['tempmax'+i]       = weatherdata[i].temperature_max;
     }
     
     //update now values
@@ -258,7 +266,9 @@ function onSynchronizeDevices() {
     "temperature_now", "weekday_now", "symbol_now", "airpressure_now", "cloudareafraction_now", "humidity_now", "winddirection_now", "windspeed_now",
     "temperature1","temperature2","temperature3","temperature4","temperature5","temperature6","temperature7",
     "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
-    "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7"
+    "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7",
+    "tempmin1","tempmin2","tempmin3","tempmin4","tempmin5","tempmin6","tempmin7",
+    "tempmax1","tempmax2","tempmax3","tempmax4","tempmax5","tempmax6","tempmax7"
     ];
     
     plugin.Devices[metno1.Id] = metno1;
