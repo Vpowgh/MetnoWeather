@@ -243,28 +243,28 @@ function onPoll() {
     device.windspeed_now =          cachedResponse.properties.timeseries[nowindex].data.instant.details.wind_speed;
 
     if( (device.winddirection_now > 337.5) && (device.winddirection_now <= 22.5) ) {
-        device.winddirection_now_arrow = "\u2191";
-    }
-    else if( (device.winddirection_now > 22.5) && (device.winddirection_now <= 67.5) ) {
-        device.winddirection_now_arrow = "\u2197";
-    }
-    else if( (device.winddirection_now > 67.5) && (device.winddirection_now <= 112.5) ) {
-        device.winddirection_now_arrow = "\u2192";
-    }
-    else if( (device.winddirection_now > 112.5) && (device.winddirection_now <= 157.5) ) {
-        device.winddirection_now_arrow = "\u2198";
-    }
-    else if( (device.winddirection_now > 157.5) && (device.winddirection_now <= 202.5) ) {
         device.winddirection_now_arrow = "\u2193";
     }
-    else if( (device.winddirection_now > 202.5) && (device.winddirection_now <= 247.5) ) {
+    else if( (device.winddirection_now > 22.5) && (device.winddirection_now <= 67.5) ) {
         device.winddirection_now_arrow = "\u2199";
     }
-    else if( (device.winddirection_now > 247.5) && (device.winddirection_now <= 292.5) ) {
+    else if( (device.winddirection_now > 67.5) && (device.winddirection_now <= 112.5) ) {
         device.winddirection_now_arrow = "\u2190";
     }
-    else {
+    else if( (device.winddirection_now > 112.5) && (device.winddirection_now <= 157.5) ) {
         device.winddirection_now_arrow = "\u2196";
+    }
+    else if( (device.winddirection_now > 157.5) && (device.winddirection_now <= 202.5) ) {
+        device.winddirection_now_arrow = "\u2191";
+    }
+    else if( (device.winddirection_now > 202.5) && (device.winddirection_now <= 247.5) ) {
+        device.winddirection_now_arrow = "\u2197";
+    }
+    else if( (device.winddirection_now > 247.5) && (device.winddirection_now <= 292.5) ) {
+        device.winddirection_now_arrow = "\u2192";
+    }
+    else {
+        device.winddirection_now_arrow = "\u2198";
     }
 
     var ssymbol;
