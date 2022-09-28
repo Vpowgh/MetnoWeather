@@ -241,7 +241,32 @@ function onPoll() {
     device.humidity_now =           cachedResponse.properties.timeseries[nowindex].data.instant.details.relative_humidity;
     device.winddirection_now =      cachedResponse.properties.timeseries[nowindex].data.instant.details.wind_from_direction;
     device.windspeed_now =          cachedResponse.properties.timeseries[nowindex].data.instant.details.wind_speed;
-    
+
+    if( (device.winddirection_now > 337.5) && (device.winddirection_now <= 22.5) ) {
+        device.winddirection_now_arrow = "\u2191";
+    }
+    else if( (device.winddirection_now > 22.5) && (device.winddirection_now <= 67.5) ) {
+        device.winddirection_now_arrow = "\u2197";
+    }
+    else if( (device.winddirection_now > 67.5) && (device.winddirection_now <= 112.5) ) {
+        device.winddirection_now_arrow = "\u2192";
+    }
+    else if( (device.winddirection_now > 112.5) && (device.winddirection_now <= 157.5) ) {
+        device.winddirection_now_arrow = "\u2198";
+    }
+    else if( (device.winddirection_now > 157.5) && (device.winddirection_now <= 202.5) ) {
+        device.winddirection_now_arrow = "\u2193";
+    }
+    else if( (device.winddirection_now > 202.5) && (device.winddirection_now <= 247.5) ) {
+        device.winddirection_now_arrow = "\u2199";
+    }
+    else if( (device.winddirection_now > 247.5) && (device.winddirection_now <= 292.5) ) {
+        device.winddirection_now_arrow = "\u2190";
+    }
+    else {
+        device.winddirection_now_arrow = "\u2196";
+    }
+
     var ssymbol;
     if(cachedResponse.properties.timeseries[nowindex].data.hasOwnProperty('next_1_hours')) {
        ssymbol = cachedResponse.properties.timeseries[nowindex].data.next_1_hours.summary.symbol_code
@@ -264,7 +289,7 @@ function onSynchronizeDevices() {
     metno1.DisplayName = "Metno 1";
     metno1.Capabilities = [];
     metno1.Attributes = [
-    "temperature_now", "weekday_now", "symbol_now", "airpressure_now", "cloudareafraction_now", "humidity_now", "winddirection_now", "windspeed_now",
+    "temperature_now", "weekday_now", "symbol_now", "airpressure_now", "cloudareafraction_now", "humidity_now", "winddirection_now", "winddirection_now_arrow", "windspeed_now",
     "temperature1","temperature2","temperature3","temperature4","temperature5","temperature6","temperature7",
     "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
     "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7",
