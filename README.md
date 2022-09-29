@@ -27,7 +27,8 @@ The plugin uses following attributes to store data:
 
 # Release notes
 v1.3
-- Add daily high and low temperatures.
+- Added daily high and low temperatures.
+- Added wind direction as an arrow character.
 - Altitude truncated to integer as it should be given as whole meters.
 
 v1.2
