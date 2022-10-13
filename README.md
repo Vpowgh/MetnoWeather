@@ -8,7 +8,7 @@ Temperature is average temperature for a whole day. Weather icon is taken from t
 
 # Settings
 
-In the settings give latitude, longitude and altitude.
+In the settings give latitude, longitude and altitude. Make sure the latitude and longitude are given using point, not comma.
 
 # Usage
 Import plugin code to HomeRemote project.
@@ -16,14 +16,21 @@ Import plugin code to HomeRemote project.
 Import icon pictures in png format to HomeRemote project. Icons can be downloaded from link below.
 
 The plugin uses following attributes to store data:
->    "temperature_now", "weekday_now", "symbol_now", "airpressure_now", "cloudareafraction_now", "humidity_now", "winddirection_now", "windspeed_now",
+>    "temperature_now", "weekday_now", "symbol_now", "airpressure_now", "cloudareafraction_now", "humidity_now", "winddirection_now", "winddirection_now_arrow", "windspeed_now",
 >    "temperature1","temperature2","temperature3","temperature4","temperature5","temperature6","temperature7",
 >    "weekday1","weekday2","weekday3","weekday4","weekday5","weekday6","weekday7",
->    "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7"
+>    "symbol1","symbol2","symbol3","symbol4","symbol5","symbol6","symbol7",
+>    "tempmin1","tempmin2","tempmin3","tempmin4","tempmin5","tempmin6","tempmin7",
+>    "tempmax1","tempmax2","tempmax3","tempmax4","tempmax5","tempmax6","tempmax7"
 
 "now" variables are for current conditions. Number 1 variables are for following day (tomorrow) and then for each following day 2,3...7.
 
 # Release notes
+v1.3
+- Added daily high and low temperatures.
+- Added wind direction as an arrow character.
+- Altitude truncated to integer as it should be given as whole meters.
+
 v1.2
 - Better compliancy to met.no Terms Of Service: Using If-Modified-Since headers for queries.
 
